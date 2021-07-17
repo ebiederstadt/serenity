@@ -30,6 +30,12 @@ public:
         YearOnly
     };
 
+    enum class TopBarView {
+        None,
+        Year,
+        MonthAndYear
+    };
+
     Calendar(Core::DateTime date_time = Core::DateTime::now(), Mode mode = Month);
     virtual ~Calendar() override;
 
@@ -54,11 +60,9 @@ public:
     void set_grid(bool);
     bool has_grid() const { return m_grid; }
 
-    void set_show_year(bool b) { m_show_year = b; }
-    bool is_showing_year() const { return m_show_year; }
-
-    void set_show_month_and_year(bool b) { m_show_month_year = b; }
-    bool is_showing_month_and_year() const { return m_show_month_year; }
+    void set_top_bar_display(TopBarView const& view) { m_top_bar_display = view; }
+    bool is_showing_year() const { return m_top_bar_display == TopBarView::Year; }
+    bool is_showing_month_and_year() const { return m_top_bar_display == TopBarView::MonthAndYear; }
 
     void set_show_days_of_the_week(bool b) { m_show_days = b; }
     bool is_showing_days_of_the_week() const { return m_show_days; }
@@ -113,9 +117,8 @@ private:
     Vector<Tile> m_tiles[12];
 
     bool m_grid { true };
-    bool m_show_month_year { true };
+    TopBarView m_top_bar_display { TopBarView::MonthAndYear };
     bool m_show_days { true };
-    bool m_show_year { false };
     bool m_show_month_tiles { false };
     int m_currently_pressed_index { -1 };
     unsigned m_view_year;

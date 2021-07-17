@@ -77,8 +77,7 @@ void Calendar::toggle_mode()
 {
     m_mode == Month ? m_mode = Year : m_mode = Month;
     set_show_days_of_the_week(!m_show_days);
-    set_show_year(!m_show_year);
-    set_show_month_and_year(!m_show_month_year);
+    set_top_bar_display(m_mode == Month ? TopBarView::MonthAndYear : TopBarView::Year);
     update_tiles(this->view_year(), this->view_month());
     this->resize(this->height(), this->width());
     invalidate_layout();
@@ -91,11 +90,9 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
 
     if (mode() == Month) {
         if (m_event_size.width() < 160 || m_event_size.height() < 130)
-            set_show_month_and_year(false);
+            set_top_bar_display(TopBarView::None);
         else if (m_event_size.width() >= 160 && m_event_size.height() >= 130)
-            set_show_month_and_year(true);
-
-        set_show_year(false);
+            set_top_bar_display(TopBarView::MonthAndYear);
 
         const int GRID_LINES = 6;
         int tile_width = (m_event_size.width() - GRID_LINES) / 7;
@@ -140,11 +137,9 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
         }
     } else {
         if (m_event_size.width() < 140 && m_event_size.height() < 120)
-            set_show_year(false);
+            set_top_bar_display(TopBarView::None);
         else if (m_event_size.width() >= 140 && m_event_size.height() >= 120)
-            set_show_year(true);
-
-        set_show_month_and_year(false);
+            set_top_bar_display(TopBarView::Year);
 
         const int VERT_GRID_LINES = 27;
         const int HORI_GRID_LINES = 15;
