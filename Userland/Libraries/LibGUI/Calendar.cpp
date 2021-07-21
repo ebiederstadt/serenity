@@ -81,11 +81,18 @@ void Calendar::set_mode(Mode const& mode)
     m_mode = mode;
     switch (m_mode) {
     case Week:
+        set_show_day_numbers(true);
+        set_show_days_of_the_week(true);
+        set_top_bar_display(TopBarView::MonthAndYear);
+        set_grid(true);
+        break;
     case Month:
+        set_show_day_numbers(false);
         set_show_days_of_the_week(true);
         set_top_bar_display(TopBarView::MonthAndYear);
         break;
     case Year:
+        set_show_day_numbers(false);
         set_show_days_of_the_week(false);
         set_top_bar_display(TopBarView::Year);
         break;
@@ -100,7 +107,42 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
     m_event_size.set_width(event.size().width() - (frame_thickness() * 2));
     m_event_size.set_height(event.size().height() - (frame_thickness() * 2));
 
-    if (mode() == Month) {
+    if (mode() == Week) {
+        if (m_event_size.width() < 160 || m_event_size.height() < 130)
+            set_top_bar_display(TopBarView::None);
+        else if (m_event_size.width() >= 160 && m_event_size.height() >= 130)
+            set_top_bar_display(TopBarView::MonthAndYear);
+
+        const int GRID_LINES = 6;
+        int tile_width = (m_event_size.width() - GRID_LINES) / 7;
+        int width_remainder = (m_event_size.width() - GRID_LINES) % 7;
+        int y_offset = is_showing_days_of_the_week() ? 16 : 0;
+        y_offset += is_showing_month_and_year() ? 24 : 0;
+        int tile_height = (m_event_size.height() - y_offset - GRID_LINES);
+
+        set_unadjusted_tile_size(tile_width, tile_height);
+
+        for (auto& day : m_days)
+            day.width = tile_width;
+
+        for (int i = 0; i < width_remainder; ++i) {
+            m_days[i].width = tile_width + 1;
+            m_tiles[0][i].width = tile_width + 1;
+        }
+
+        if (is_showing_days_of_the_week()) {
+            for (int i = 0; i < 7; i++) {
+                if (m_event_size.width() < 138)
+                    m_days[i].name = micro_day_names[i];
+                else if (m_event_size.width() < 200)
+                    m_days[i].name = mini_day_names[i];
+                else if (m_event_size.width() < 480)
+                    m_days[i].name = short_day_names[i];
+                else
+                    m_days[i].name = long_day_names[i];
+            }
+        }
+    } else if (mode() == Month) {
         if (m_event_size.width() < 160 || m_event_size.height() < 130)
             set_top_bar_display(TopBarView::None);
         else if (m_event_size.width() >= 160 && m_event_size.height() >= 130)
@@ -291,6 +333,11 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
 
 void Calendar::update_tiles(unsigned view_year, unsigned view_month)
 {
+    if (mode() == Week) {
+        update_tiles(m_selected_date);
+        return;
+    }
+
     set_view_date(view_year, view_month);
 
     unsigned months;
@@ -338,6 +385,27 @@ void Calendar::update_tiles(unsigned view_year, unsigned view_month)
                 && date_time.year() == Core::DateTime::now().year());
         }
     }
+    update();
+}
+
+void Calendar::update_tiles(Core::DateTime const& date_time)
+{
+    set_view_date(date_time.year(), date_time.month());
+
+    auto week_dates = get_dates_of_current_week(date_time);
+    auto now = Core::DateTime::now();
+
+    for (size_t i = 0; i < 7; ++i) {
+        m_tiles[0][i].date_time = week_dates[i];
+        m_tiles[0][i].is_today = week_dates[i].day() == now.day()
+            && week_dates[i].month() == now.month()
+            && week_dates[i].year() == now.year();
+        m_tiles[0][i].is_selected = week_dates[i].year() == m_selected_date.year()
+            && week_dates[i].month() == m_selected_date.month()
+            && week_dates[i].day() == m_selected_date.day();
+        m_tiles[0][i].is_outside_selected_month = m_view_month != week_dates[i].month();
+    }
+
     update();
 }
 
@@ -443,7 +511,7 @@ void Calendar::paint_event(GUI::PaintEvent& event)
             0,
             y_offset,
             frame_inner_rect().width(),
-            16);
+            is_showing_day_numbers() ? 32 : 16);
         painter.fill_rect(days_of_the_week_rect, palette().hover_highlight());
         for (int i = 0; i < 7; i++) {
             if (i > 0)
@@ -454,13 +522,54 @@ void Calendar::paint_event(GUI::PaintEvent& event)
                 m_days[i].width,
                 16);
             painter.draw_text(day_rect, m_days[i].name, small_font->bold_variant(), Gfx::TextAlignment::Center, palette().base_text());
+            if (is_showing_day_numbers()) {
+                auto number_rect = Gfx::IntRect(x_offset, y_offset + 16, m_days[i].width, 16);
+                auto date = m_tiles[0].at(i).date_time;
+                if (m_tiles[0][i].is_today)
+                    painter.draw_text(
+                        number_rect,
+                        String::formatted("{}", date.day()),
+                        small_font->bold_variant(),
+                        Gfx::TextAlignment::Center,
+                        palette().base_text());
+                else if (m_tiles[0][i].is_outside_selected_month)
+                    painter.draw_text(
+                        number_rect,
+                        String::formatted("{}", date.day()),
+                        *small_font,
+                        Gfx::TextAlignment::Center,
+                        Color::MidGray);
+                else
+                    painter.draw_text(
+                        number_rect,
+                        String::formatted("{}", date.day()),
+                        *small_font,
+                        Gfx::TextAlignment::Center,
+                        palette().base_text());
+            }
         }
         y_offset += days_of_the_week_rect.height();
         painter.draw_line({ 0, y_offset }, { frame_inner_rect().width(), y_offset }, palette().threed_shadow2(), 1);
         y_offset += 1;
     }
 
-    if (mode() == Month) {
+    if (mode() == Week) {
+        x_offset = 0;
+        for (int i = 0; i < 7; ++i) {
+            if (i > 0)
+                x_offset += m_tiles[0][0].width + 1;
+            auto tile_rect = Gfx::IntRect(
+                x_offset,
+                y_offset,
+                m_tiles[0][0].width,
+                height);
+            m_tiles[0][i].rect = tile_rect.translated(frame_thickness(), frame_thickness());
+            if (m_tiles[0][i].is_hovered || m_tiles[0][i].is_selected)
+                painter.fill_rect(tile_rect, palette().hover_highlight());
+            else
+                painter.fill_rect(tile_rect, palette().base());
+        }
+    } else if (mode() == Month) {
         int i = 0;
         for (int j = 0; j < 6; j++) {
             x_offset = 0;
@@ -628,6 +737,13 @@ void Calendar::paint_event(GUI::PaintEvent& event)
 
 void Calendar::leave_event(Core::Event&)
 {
+    if (mode() == Week) {
+        for (auto& week_tile : m_tiles[0])
+            week_tile.is_hovered = false;
+        update();
+        return;
+    }
+
     int months;
     mode() == Month ? months = 1 : months = 12;
     for (int i = 0; i < months; i++) {
@@ -647,6 +763,26 @@ void Calendar::mousemove_event(GUI::MouseEvent& event)
 {
     static int last_index_i;
     static int last_index_j;
+
+    if (mode() == Week) {
+        if (m_tiles[0][last_index_i].rect.contains(event.position()) && m_tiles[0][last_index_i].is_hovered)
+            return;
+        else {
+            m_tiles[0][last_index_i].is_hovered = false;
+            update(m_tiles[0][last_index_i].rect);
+        }
+
+        for (int i = 0; i < 7; ++i) {
+            if (m_tiles[0][i].rect.contains(event.position())) {
+                m_tiles[0][i].is_hovered = true;
+                update(m_tiles[0][last_index_i].rect);
+                last_index_i = i;
+                update(m_tiles[0][i].rect);
+                break;
+            }
+        }
+        return;
+    }
 
     if (mode() == Year && m_show_month_tiles) {
         if (m_months[last_index_i].rect.contains(event.position()) && (m_months[last_index_i].is_hovered || m_months[last_index_i].is_being_pressed)) {
@@ -700,32 +836,44 @@ void Calendar::mousemove_event(GUI::MouseEvent& event)
 
 void Calendar::mouseup_event(GUI::MouseEvent& event)
 {
-    int months;
-    mode() == Month ? months = 1 : months = 12;
-    for (int i = 0; i < months; i++) {
-        if (mode() == Year && m_show_month_tiles) {
-            if (m_months[i].rect.contains(event.position()) && m_months[i].is_being_pressed) {
-                set_view_date(view_year(), (unsigned)i + 1);
-                set_mode(Month);
-                if (on_month_click)
-                    on_month_click();
-            }
-        } else {
-            for (int j = 0; j < 42; j++) {
-                if (mode() == Year && m_tiles[i][j].is_outside_selected_month)
-                    continue;
-                if (m_tiles[i][j].rect.contains(event.position())) {
-                    m_previous_selected_date = m_selected_date;
-                    m_selected_date = m_tiles[i][j].date_time;
-                    update_tiles(m_selected_date.year(), m_selected_date.month());
-                    if (on_tile_click)
-                        on_tile_click();
-                }
+    if (mode() == Week) {
+        for (size_t i = 0; i < 7; ++i) {
+            if (m_tiles[0][i].rect.contains(event.position())) {
+                m_previous_selected_date = m_selected_date;
+                m_selected_date = m_tiles[0][i].date_time;
+                update_tiles(m_selected_date);
+                if (on_tile_click)
+                    on_tile_click();
             }
         }
-        if (months == 12) {
-            m_months[i].is_being_pressed = false;
-            m_months[i].is_hovered = false;
+    } else {
+        int months;
+        mode() == Month ? months = 1 : months = 12;
+        for (int i = 0; i < months; i++) {
+            if (mode() == Year && m_show_month_tiles) {
+                if (m_months[i].rect.contains(event.position()) && m_months[i].is_being_pressed) {
+                    set_view_date(view_year(), (unsigned)i + 1);
+                    set_mode(Month);
+                    if (on_month_click)
+                        on_month_click();
+                }
+            } else {
+                for (int j = 0; j < 42; j++) {
+                    if (mode() == Year && m_tiles[i][j].is_outside_selected_month)
+                        continue;
+                    if (m_tiles[i][j].rect.contains(event.position())) {
+                        m_previous_selected_date = m_selected_date;
+                        m_selected_date = m_tiles[i][j].date_time;
+                        update_tiles(m_selected_date.year(), m_selected_date.month());
+                        if (on_tile_click)
+                            on_tile_click();
+                    }
+                }
+            }
+            if (months == 12) {
+                m_months[i].is_being_pressed = false;
+                m_months[i].is_hovered = false;
+            }
         }
     }
     m_currently_pressed_index = -1;
@@ -748,19 +896,105 @@ void Calendar::mousedown_event(GUI::MouseEvent& event)
 
 void Calendar::doubleclick_event(GUI::MouseEvent& event)
 {
-    int months;
-    mode() == Month ? months = 1 : months = 12;
-    for (int i = 0; i < months; i++) {
-        for (int j = 0; j < 42; j++) {
-            if (m_tiles[i][j].date_time.day() != m_previous_selected_date.day())
+    if (mode() == Week) {
+        for (size_t i = 0; i < 6; ++i) {
+            if (m_tiles[0][i].date_time.day() != m_previous_selected_date.day())
                 continue;
-            if (mode() == Year && m_tiles[i][j].is_outside_selected_month)
-                continue;
-            if (m_tiles[i][j].rect.contains(event.position())) {
+            if (m_tiles[0][i].rect.contains(event.position())) {
                 if (on_tile_doubleclick)
                     on_tile_doubleclick();
             }
         }
+    } else {
+        int months;
+        mode() == Month ? months = 1 : months = 12;
+        for (int i = 0; i < months; i++) {
+            for (int j = 0; j < 42; j++) {
+                if (m_tiles[i][j].date_time.day() != m_previous_selected_date.day())
+                    continue;
+                if (mode() == Year && m_tiles[i][j].is_outside_selected_month)
+                    continue;
+                if (m_tiles[i][j].rect.contains(event.position())) {
+                    if (on_tile_doubleclick)
+                        on_tile_doubleclick();
+                }
+            }
+        }
     }
+
+}
+
+Vector<Core::DateTime> Calendar::get_dates_of_current_week(Core::DateTime const& date)
+{
+    unsigned days_in_previous_month;
+    unsigned previous_month = date.month() - 1;
+    if (date.month() - 1 > 1)
+        days_in_previous_month = Core::DateTime::create(date.year(), date.month() - 1).days_in_month();
+    else {
+        days_in_previous_month = 31;
+        previous_month = 12;
+    }
+
+    unsigned day = date.day();
+    unsigned month = date.month();
+    unsigned year = date.year();
+    if (date.weekday() > day) {
+        day = days_in_previous_month - date.weekday() - 1 + day;
+        if (date.month() > 1)
+            month -= 1;
+        else {
+            month = 12;
+            year -= 1;
+        }
+    } else
+        day = date.day() - date.weekday();
+
+    Vector<Core::DateTime> output;
+    for (int i = 0; i < 7; ++i) {
+        output.append(Core::DateTime::create(year, month, day));
+        day += 1;
+        if ((day > days_in_previous_month && month == previous_month) || (day > date.days_in_month() && month == date.month())) {
+            day = 1;
+            month += 1;
+            if (month > 12) {
+                month = 1;
+                year += 1;
+            }
+        }
+    }
+
+    return output;
+}
+
+void Calendar::jump_forwards_one_week()
+{
+    Core::DateTime new_date;
+    if (selected_date().day() + 7 > selected_date().days_in_month()) {
+        unsigned day_in_next_month = 7 + selected_date().day() - selected_date().days_in_month();
+        if (selected_date().month() == 12)
+            new_date = Core::DateTime::create(selected_date().year() + 1, 1, day_in_next_month);
+        else
+            new_date = Core::DateTime::create(selected_date().year(), selected_date().month() + 1, day_in_next_month);
+    } else
+        new_date = Core::DateTime::create(selected_date().year(), selected_date().month(), selected_date().day() + 7);
+
+    update_tiles(new_date);
+}
+
+void Calendar::jump_backwards_one_week()
+{
+    Core::DateTime new_date;
+    if (selected_date().day() - 7 <= 0) {
+        unsigned days_in_previous_month = 31;
+        if (selected_date().month() == 1)
+            new_date = Core::DateTime::create(selected_date().year() - 1, 12, days_in_previous_month - 7 + selected_date().day());
+        else {
+            days_in_previous_month = Core::DateTime::create(selected_date().year(), selected_date().month() - 1).days_in_month();
+            new_date = Core::DateTime::create(selected_date().year(), selected_date().month() - 1, days_in_previous_month - 7 + selected_date().day());
+        }
+    } else
+        new_date = Core::DateTime::create(selected_date().year(), selected_date().month(), selected_date().day() - 7);
+
+    update_tiles(new_date);
 }
 }

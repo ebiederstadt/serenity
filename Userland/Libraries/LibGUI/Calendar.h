@@ -57,6 +57,7 @@ public:
     void set_mode(Mode const&);
 
     void update_tiles(unsigned year, unsigned month);
+    void update_tiles(Core::DateTime const&);
 
     void set_grid(bool);
     bool has_grid() const { return m_grid; }
@@ -67,6 +68,12 @@ public:
 
     void set_show_days_of_the_week(bool b) { m_show_days = b; }
     bool is_showing_days_of_the_week() const { return m_show_days; }
+
+    void set_show_day_numbers(bool b) { m_show_day_numbers = b; }
+    bool is_showing_day_numbers() const { return m_show_day_numbers; }
+
+    void jump_forwards_one_week();
+    void jump_backwards_one_week();
 
     Gfx::IntSize unadjusted_tile_size() const { return m_unadjusted_tile_size; }
     void set_unadjusted_tile_size(int width, int height)
@@ -87,6 +94,8 @@ private:
     virtual void mouseup_event(MouseEvent&) override;
     virtual void doubleclick_event(MouseEvent&);
     virtual void leave_event(Core::Event&) override;
+
+    static Vector<Core::DateTime> get_dates_of_current_week(Core::DateTime const &date);
 
     struct Day {
         String name;
@@ -119,6 +128,7 @@ private:
 
     bool m_grid { true };
     TopBarView m_top_bar_display { TopBarView::MonthAndYear };
+    bool m_show_day_numbers { false };
     bool m_show_days { true };
     bool m_show_month_tiles { false };
     int m_currently_pressed_index { -1 };

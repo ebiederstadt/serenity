@@ -57,7 +57,10 @@ int main(int argc, char** argv)
     auto prev_date_action = GUI::Action::create({}, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/go-back.png"), [&](const GUI::Action&) {
         unsigned view_month = calendar->view_month();
         unsigned view_year = calendar->view_year();
-        if (calendar->mode() == GUI::Calendar::Month) {
+        if (calendar->mode() == GUI::Calendar::Week) {
+            calendar->jump_backwards_one_week();
+            return;
+        } else if (calendar->mode() == GUI::Calendar::Month) {
             view_month--;
             if (calendar->view_month() == 1) {
                 view_month = 12;
@@ -72,7 +75,10 @@ int main(int argc, char** argv)
     auto next_date_action = GUI::Action::create({}, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/go-forward.png"), [&](const GUI::Action&) {
         unsigned view_month = calendar->view_month();
         unsigned view_year = calendar->view_year();
-        if (calendar->mode() == GUI::Calendar::Month) {
+        if (calendar->mode() == GUI::Calendar::Week) {
+            calendar->jump_forwards_one_week();
+            return;
+        } else if (calendar->mode() == GUI::Calendar::Month) {
             view_month++;
             if (calendar->view_month() == 12) {
                 view_month = 1;
