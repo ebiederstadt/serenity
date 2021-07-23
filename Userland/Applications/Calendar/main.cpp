@@ -93,6 +93,10 @@ int main(int argc, char** argv)
         calendar->update_tiles(Core::DateTime::now().year(), Core::DateTime::now().month());
     });
 
+    auto view_week_action = GUI::Action::create_checkable("&Week View", { Mod_Ctrl, KeyCode::Key_1 }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/calendar-week-view.png"), [&](GUI::Action const&) {
+        calendar->set_mode(GUI::Calendar::Week);
+    });
+
     auto view_month_action = GUI::Action::create_checkable("&Month View", { Mod_Ctrl, KeyCode::Key_2 }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/calendar-month-view.png"), [&](const GUI::Action&) {
         calendar->set_mode(GUI::Calendar::Month);
     });
@@ -104,6 +108,7 @@ int main(int argc, char** argv)
 
     auto view_type_action_group = make<GUI::ActionGroup>();
     view_type_action_group->set_exclusive(true);
+    view_type_action_group->add_action(*view_week_action);
     view_type_action_group->add_action(*view_month_action);
     view_type_action_group->add_action(*view_year_action);
 
@@ -113,6 +118,7 @@ int main(int argc, char** argv)
     toolbar->add_action(jump_to_action);
     toolbar->add_action(add_event_action);
     toolbar->add_separator();
+    toolbar->add_action(view_week_action);
     toolbar->add_action(view_month_action);
     toolbar->add_action(view_year_action);
 
@@ -137,6 +143,7 @@ int main(int argc, char** argv)
     }));
 
     auto& view_menu = window->add_menu("&View");
+    view_menu.add_action(*view_week_action);
     view_menu.add_action(*view_month_action);
     view_menu.add_action(*view_year_action);
 
