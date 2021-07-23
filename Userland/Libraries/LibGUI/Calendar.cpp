@@ -73,11 +73,23 @@ void Calendar::set_grid(bool show)
     m_grid = show;
 }
 
-void Calendar::toggle_mode()
+void Calendar::set_mode(Mode const& mode)
 {
-    m_mode == Month ? m_mode = Year : m_mode = Month;
-    set_show_days_of_the_week(!m_show_days);
-    set_top_bar_display(m_mode == Month ? TopBarView::MonthAndYear : TopBarView::Year);
+    if (mode == m_mode)
+        return;
+
+    m_mode = mode;
+    switch (m_mode) {
+    case Week:
+    case Month:
+        set_show_days_of_the_week(true);
+        set_top_bar_display(TopBarView::MonthAndYear);
+        break;
+    case Year:
+        set_show_days_of_the_week(false);
+        set_top_bar_display(TopBarView::Year);
+        break;
+    }
     update_tiles(this->view_year(), this->view_month());
     this->resize(this->height(), this->width());
     invalidate_layout();
@@ -694,7 +706,7 @@ void Calendar::mouseup_event(GUI::MouseEvent& event)
         if (mode() == Year && m_show_month_tiles) {
             if (m_months[i].rect.contains(event.position()) && m_months[i].is_being_pressed) {
                 set_view_date(view_year(), (unsigned)i + 1);
-                toggle_mode();
+                set_mode(Month);
                 if (on_month_click)
                     on_month_click();
             }

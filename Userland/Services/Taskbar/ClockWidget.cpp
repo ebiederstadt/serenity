@@ -86,11 +86,13 @@ ClockWidget::ClockWidget()
     m_selected_calendar_button->set_button_style(Gfx::ButtonStyle::Coolbar);
     m_selected_calendar_button->set_fixed_height(24);
     m_selected_calendar_button->on_click = [&](auto) {
-        m_calendar->toggle_mode();
-        if (m_calendar->mode() == GUI::Calendar::Year)
-            m_selected_calendar_button->set_text(m_calendar->formatted_date(GUI::Calendar::YearOnly));
-        else
+        if (m_calendar->mode() == GUI::Calendar::Year) {
+            m_calendar->set_mode(GUI::Calendar::Month);
             m_selected_calendar_button->set_text(m_calendar->formatted_date());
+        } else {
+            m_calendar->set_mode(GUI::Calendar::Year);
+            m_selected_calendar_button->set_text(m_calendar->formatted_date(GUI::Calendar::YearOnly));
+        }
     };
 
     m_next_date = navigation_container.add<GUI::Button>();
@@ -218,7 +220,7 @@ void ClockWidget::position_calendar_window()
 void ClockWidget::jump_to_current_date()
 {
     if (m_calendar->mode() == GUI::Calendar::Year)
-        m_calendar->toggle_mode();
+        m_calendar->set_mode(GUI::Calendar::Month);
     m_calendar->set_selected_date(Core::DateTime::now());
     m_calendar->update_tiles(Core::DateTime::now().year(), Core::DateTime::now().month());
     m_selected_calendar_button->set_text(m_calendar->formatted_date());

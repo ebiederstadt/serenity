@@ -93,15 +93,13 @@ int main(int argc, char** argv)
         calendar->update_tiles(Core::DateTime::now().year(), Core::DateTime::now().month());
     });
 
-    auto view_month_action = GUI::Action::create_checkable("&Month View", { Mod_Ctrl, KeyCode::Key_1 }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/calendar-month-view.png"), [&](const GUI::Action&) {
-        if (calendar->mode() == GUI::Calendar::Year)
-            calendar->toggle_mode();
+    auto view_month_action = GUI::Action::create_checkable("&Month View", { Mod_Ctrl, KeyCode::Key_2 }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/calendar-month-view.png"), [&](const GUI::Action&) {
+        calendar->set_mode(GUI::Calendar::Month);
     });
     view_month_action->set_checked(true);
 
-    auto view_year_action = GUI::Action::create_checkable("&Year View", { Mod_Ctrl, KeyCode::Key_2 }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/icon-view.png"), [&](const GUI::Action&) {
-        if (calendar->mode() == GUI::Calendar::Month)
-            calendar->toggle_mode();
+    auto view_year_action = GUI::Action::create_checkable("&Year View", { Mod_Ctrl, KeyCode::Key_3 }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/icon-view.png"), [&](const GUI::Action&) {
+        calendar->set_mode(GUI::Calendar::Year);
     });
 
     auto view_type_action_group = make<GUI::ActionGroup>();

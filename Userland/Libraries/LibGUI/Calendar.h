@@ -19,6 +19,7 @@ class Calendar final : public GUI::Frame {
 
 public:
     enum Mode {
+        Week,
         Month,
         Year
     };
@@ -53,7 +54,7 @@ public:
     String formatted_date(Format format = LongMonthYear);
 
     Mode mode() const { return m_mode; }
-    void toggle_mode();
+    void set_mode(Mode const&);
 
     void update_tiles(unsigned year, unsigned month);
 
