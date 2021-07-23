@@ -79,24 +79,13 @@ void Calendar::set_mode(Mode const& mode)
         return;
 
     m_mode = mode;
-    switch (m_mode) {
-    case Week:
-        set_show_day_numbers(true);
-        set_show_days_of_the_week(true);
-        set_top_bar_display(TopBarView::MonthAndYear);
+
+    set_show_day_numbers(m_mode == Week);
+    set_show_days_of_the_week(m_mode != Year);
+    set_top_bar_display(m_mode == Year ? TopBarView::Year : TopBarView::MonthAndYear);
+    if (m_mode == Week)
         set_grid(true);
-        break;
-    case Month:
-        set_show_day_numbers(false);
-        set_show_days_of_the_week(true);
-        set_top_bar_display(TopBarView::MonthAndYear);
-        break;
-    case Year:
-        set_show_day_numbers(false);
-        set_show_days_of_the_week(false);
-        set_top_bar_display(TopBarView::Year);
-        break;
-    }
+
     update_tiles(this->view_year(), this->view_month());
     this->resize(this->height(), this->width());
     invalidate_layout();
@@ -107,28 +96,21 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
     m_event_size.set_width(event.size().width() - (frame_thickness() * 2));
     m_event_size.set_height(event.size().height() - (frame_thickness() * 2));
 
-    if (mode() == Week) {
+    const int GRID_LINES = 6;
+    int tile_width;
+    int width_remainder;
+
+    if (mode() == Week || mode() == Month) {
+        tile_width = (m_event_size.width() - GRID_LINES) / 7;
+        width_remainder = (m_event_size.width() - GRID_LINES) % 7;
+
         if (m_event_size.width() < 160 || m_event_size.height() < 130)
             set_top_bar_display(TopBarView::None);
         else if (m_event_size.width() >= 160 && m_event_size.height() >= 130)
             set_top_bar_display(TopBarView::MonthAndYear);
 
-        const int GRID_LINES = 6;
-        int tile_width = (m_event_size.width() - GRID_LINES) / 7;
-        int width_remainder = (m_event_size.width() - GRID_LINES) % 7;
-        int y_offset = is_showing_days_of_the_week() ? 16 : 0;
-        y_offset += is_showing_month_and_year() ? 24 : 0;
-        int tile_height = (m_event_size.height() - y_offset - GRID_LINES);
-
-        set_unadjusted_tile_size(tile_width, tile_height);
-
         for (auto& day : m_days)
             day.width = tile_width;
-
-        for (int i = 0; i < width_remainder; ++i) {
-            m_days[i].width = tile_width + 1;
-            m_tiles[0][i].width = tile_width + 1;
-        }
 
         if (is_showing_days_of_the_week()) {
             for (int i = 0; i < 7; i++) {
@@ -142,15 +124,18 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
                     m_days[i].name = long_day_names[i];
             }
         }
-    } else if (mode() == Month) {
-        if (m_event_size.width() < 160 || m_event_size.height() < 130)
-            set_top_bar_display(TopBarView::None);
-        else if (m_event_size.width() >= 160 && m_event_size.height() >= 130)
-            set_top_bar_display(TopBarView::MonthAndYear);
+    } if (mode() == Week) {
+        int y_offset = is_showing_days_of_the_week() ? 16 : 0;
+        y_offset += is_showing_month_and_year() ? 24 : 0;
+        int tile_height = (m_event_size.height() - y_offset - GRID_LINES);
 
-        const int GRID_LINES = 6;
-        int tile_width = (m_event_size.width() - GRID_LINES) / 7;
-        int width_remainder = (m_event_size.width() - GRID_LINES) % 7;
+        set_unadjusted_tile_size(tile_width, tile_height);
+
+        for (int i = 0; i < width_remainder; ++i) {
+            m_days[i].width = tile_width + 1;
+            m_tiles[0][i].width = tile_width + 1;
+        }
+    } else if (mode() == Month) {
         int y_offset = is_showing_days_of_the_week() ? 16 : 0;
         y_offset += is_showing_month_and_year() ? 24 : 0;
         int tile_height = (m_event_size.height() - y_offset - GRID_LINES) / 6;
@@ -164,9 +149,6 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
             m_tiles[0][i].height = tile_height;
         }
 
-        for (auto& day : m_days)
-            day.width = tile_width;
-
         for (int i = 0; i < width_remainder; i++) {
             m_days[i].width = (tile_width + 1);
             for (int j = i; j < i + 36; j += 7) {
@@ -176,19 +158,6 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
 
         for (int j = 0; j < height_remainder * 7; j++)
             m_tiles[0][j].height = tile_height + 1;
-
-        if (is_showing_days_of_the_week()) {
-            for (int i = 0; i < 7; i++) {
-                if (m_event_size.width() < 138)
-                    m_days[i].name = micro_day_names[i];
-                else if (m_event_size.width() < 200)
-                    m_days[i].name = mini_day_names[i];
-                else if (m_event_size.width() < 480)
-                    m_days[i].name = short_day_names[i];
-                else
-                    m_days[i].name = long_day_names[i];
-            }
-        }
     } else {
         if (m_event_size.width() < 140 && m_event_size.height() < 120)
             set_top_bar_display(TopBarView::None);
@@ -199,8 +168,8 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
         const int HORI_GRID_LINES = 15;
         const int THREADING = 3;
         const int MONTH_TITLE = 19;
-        int tile_width = (m_event_size.width() - VERT_GRID_LINES) / 28;
-        int width_remainder = (m_event_size.width() - VERT_GRID_LINES) % 28;
+        tile_width = (m_event_size.width() - VERT_GRID_LINES) / 28;
+        width_remainder = (m_event_size.width() - VERT_GRID_LINES) % 28;
         int y_offset = is_showing_year() ? 22 : 0;
         y_offset += (MONTH_TITLE * 3) + (THREADING * 3);
         int tile_height = (m_event_size.height() - y_offset - HORI_GRID_LINES) / 18;
