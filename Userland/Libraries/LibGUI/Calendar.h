@@ -40,7 +40,7 @@ public:
     Calendar(Core::DateTime date_time = Core::DateTime::now(), Mode mode = Month);
     virtual ~Calendar() override;
 
-    void set_selected_date(Core::DateTime date_time) { m_selected_date = date_time; }
+    void set_selected_date(Core::DateTime date_time);
     Core::DateTime selected_date() const { return m_selected_date; }
 
     void set_view_date(unsigned year, unsigned month)
@@ -95,7 +95,7 @@ private:
     virtual void doubleclick_event(MouseEvent&);
     virtual void leave_event(Core::Event&) override;
 
-    static Vector<Core::DateTime> get_dates_of_current_week(Core::DateTime const &date);
+    static Vector<Core::DateTime> get_dates_of_current_week(Core::DateTime const& date);
 
     struct Day {
         String name;
@@ -136,6 +136,7 @@ private:
     unsigned m_view_month;
     Core::DateTime m_selected_date;
     Core::DateTime m_previous_selected_date;
+    Core::DateTime m_date_for_week_view;
     Gfx::IntSize m_unadjusted_tile_size;
     Gfx::IntSize m_event_size;
     Gfx::IntSize m_month_size[12];

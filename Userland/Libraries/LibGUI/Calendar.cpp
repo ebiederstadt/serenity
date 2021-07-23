@@ -42,6 +42,7 @@ static const auto small_font = Gfx::BitmapFont::load_from_file("/res/fonts/Katic
 
 Calendar::Calendar(Core::DateTime date_time, Mode mode)
     : m_selected_date(date_time)
+    , m_date_for_week_view(date_time)
     , m_mode(mode)
 {
     set_fill_with_background_color(true);
@@ -124,7 +125,8 @@ void Calendar::resize_event(GUI::ResizeEvent& event)
                     m_days[i].name = long_day_names[i];
             }
         }
-    } if (mode() == Week) {
+    }
+    if (mode() == Week) {
         int y_offset = is_showing_days_of_the_week() ? 16 : 0;
         y_offset += is_showing_month_and_year() ? 24 : 0;
         int tile_height = (m_event_size.height() - y_offset - GRID_LINES);
@@ -890,7 +892,6 @@ void Calendar::doubleclick_event(GUI::MouseEvent& event)
             }
         }
     }
-
 }
 
 Vector<Core::DateTime> Calendar::get_dates_of_current_week(Core::DateTime const& date)
@@ -938,32 +939,40 @@ Vector<Core::DateTime> Calendar::get_dates_of_current_week(Core::DateTime const&
 void Calendar::jump_forwards_one_week()
 {
     Core::DateTime new_date;
-    if (selected_date().day() + 7 > selected_date().days_in_month()) {
-        unsigned day_in_next_month = 7 + selected_date().day() - selected_date().days_in_month();
-        if (selected_date().month() == 12)
-            new_date = Core::DateTime::create(selected_date().year() + 1, 1, day_in_next_month);
+    if (m_date_for_week_view.day() + 7 > m_date_for_week_view.days_in_month()) {
+        unsigned day_in_next_month = 7 + m_date_for_week_view.day() - m_date_for_week_view.days_in_month();
+        if (m_date_for_week_view.month() == 12)
+            new_date = Core::DateTime::create(m_date_for_week_view.year() + 1, 1, day_in_next_month);
         else
-            new_date = Core::DateTime::create(selected_date().year(), selected_date().month() + 1, day_in_next_month);
+            new_date = Core::DateTime::create(m_date_for_week_view.year(), m_date_for_week_view.month() + 1, day_in_next_month);
     } else
-        new_date = Core::DateTime::create(selected_date().year(), selected_date().month(), selected_date().day() + 7);
+        new_date = Core::DateTime::create(m_date_for_week_view.year(), m_date_for_week_view.month(), m_date_for_week_view.day() + 7);
 
+    m_date_for_week_view = new_date;
     update_tiles(new_date);
 }
 
 void Calendar::jump_backwards_one_week()
 {
     Core::DateTime new_date;
-    if (selected_date().day() - 7 <= 0) {
+    if (m_date_for_week_view.day() - 7 <= 0) {
         unsigned days_in_previous_month = 31;
-        if (selected_date().month() == 1)
-            new_date = Core::DateTime::create(selected_date().year() - 1, 12, days_in_previous_month - 7 + selected_date().day());
+        if (m_date_for_week_view.month() == 1)
+            new_date = Core::DateTime::create(m_date_for_week_view.year() - 1, 12, days_in_previous_month - 7 + m_date_for_week_view.day());
         else {
-            days_in_previous_month = Core::DateTime::create(selected_date().year(), selected_date().month() - 1).days_in_month();
-            new_date = Core::DateTime::create(selected_date().year(), selected_date().month() - 1, days_in_previous_month - 7 + selected_date().day());
+            days_in_previous_month = Core::DateTime::create(m_date_for_week_view.year(), m_date_for_week_view.month() - 1).days_in_month();
+            new_date = Core::DateTime::create(m_date_for_week_view.year(), m_date_for_week_view.month() - 1, days_in_previous_month - 7 + m_date_for_week_view.day());
         }
     } else
-        new_date = Core::DateTime::create(selected_date().year(), selected_date().month(), selected_date().day() - 7);
+        new_date = Core::DateTime::create(m_date_for_week_view.year(), m_date_for_week_view.month(), m_date_for_week_view.day() - 7);
 
+    m_date_for_week_view = new_date;
     update_tiles(new_date);
+}
+
+void Calendar::set_selected_date(Core::DateTime date_time)
+{
+    m_selected_date = date_time;
+    m_date_for_week_view = date_time;
 }
 }
