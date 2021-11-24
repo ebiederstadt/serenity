@@ -9,7 +9,7 @@ set(SOURCES
     AddEventDialog.cpp
     CalendarWindowGML.h
     main.cpp
-)
+    )
 
 serenity_app(Calendar ICON app-calendar)
-target_link_libraries(Calendar LibGUI)
+target_link_libraries(Calendar LibGUI LibMain)

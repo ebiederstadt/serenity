@@ -6,6 +6,7 @@
 
 #include "AddEventDialog.h"
 #include <Applications/Calendar/CalendarWindowGML.h>
+#include <LibCore/System.h>
 #include <LibGUI/Action.h>
 #include <LibGUI/ActionGroup.h>
 #include <LibGUI/Application.h>
@@ -17,28 +18,18 @@
 #include <LibGUI/Menubar.h>
 #include <LibGUI/Toolbar.h>
 #include <LibGUI/Window.h>
+#include <LibMain/Main.h>
 #include <unistd.h>
 
-int main(int argc, char** argv)
+ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
-    if (pledge("stdio recvfd sendfd rpath unix", nullptr) < 0) {
-        perror("pledge");
-        return 1;
-    }
+    TRY(Core::System::pledge("stdio recvfd sendfd rpath unix", nullptr));
 
-    auto app = GUI::Application::construct(argc, argv);
+    auto app = GUI::Application::construct(arguments);
 
-    if (pledge("stdio recvfd sendfd rpath", nullptr) < 0) {
-        perror("pledge");
-        return 1;
-    }
-
-    if (unveil("/res", "r") < 0) {
-        perror("unveil");
-        return 1;
-    }
-
-    unveil(nullptr, nullptr);
+    TRY(Core::System::pledge("stdio recvfd sendfd rpath", nullptr));
+    TRY(Core::System::unveil("/res", "r"));
+    TRY(Core::System::unveil(nullptr, nullptr));
 
     auto app_icon = GUI::Icon::default_icon("app-calendar");
     auto window = GUI::Window::construct();
@@ -47,11 +38,11 @@ int main(int argc, char** argv)
     window->set_minimum_size(171, 141);
     window->set_icon(app_icon.bitmap_for_size(16));
 
-    auto& main_widget = window->set_main_widget<GUI::Widget>();
-    main_widget.load_from_gml(calendar_window_gml);
+    auto main_widget = TRY(window->try_set_main_widget<GUI::Widget>());
+    main_widget->load_from_gml(calendar_window_gml);
 
-    auto toolbar = main_widget.find_descendant_of_type_named<GUI::Toolbar>("toolbar");
-    auto calendar = main_widget.find_descendant_of_type_named<GUI::Calendar>("calendar");
+    auto toolbar = main_widget->find_descendant_of_type_named<GUI::Toolbar>("toolbar");
+    auto calendar = main_widget->find_descendant_of_type_named<GUI::Calendar>("calendar");
 
     auto prev_date_action = GUI::Action::create({}, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/go-back.png").release_value_but_fixme_should_propagate_errors(), [&](const GUI::Action&) {
         unsigned view_month = calendar->view_month();
@@ -108,14 +99,14 @@ int main(int argc, char** argv)
     view_type_action_group->add_action(*view_month_action);
     view_type_action_group->add_action(*view_year_action);
 
-    toolbar->add_action(prev_date_action);
-    toolbar->add_action(next_date_action);
+    TRY(toolbar->try_add_action(prev_date_action));
+    TRY(toolbar->try_add_action(next_date_action));
     toolbar->add_separator();
-    toolbar->add_action(jump_to_action);
-    toolbar->add_action(add_event_action);
+    TRY(toolbar->try_add_action(jump_to_action));
+    TRY(toolbar->try_add_action(add_event_action));
     toolbar->add_separator();
-    toolbar->add_action(view_month_action);
-    toolbar->add_action(view_year_action);
+    TRY(toolbar->try_add_action(view_month_action));
+    TRY(toolbar->try_add_action(view_year_action));
 
     calendar->on_tile_doubleclick = [&] {
         AddEventDialog::show(calendar->selected_date(), window);
@@ -125,25 +116,26 @@ int main(int argc, char** argv)
         view_month_action->set_checked(true);
     };
 
-    auto& file_menu = window->add_menu("&File");
-    file_menu.add_action(GUI::Action::create("&Add Event", { Mod_Ctrl | Mod_Shift, Key_E }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/add-event.png").release_value_but_fixme_should_propagate_errors(),
+    auto file_menu = TRY(window->try_add_menu("&File"));
+
+    TRY(file_menu->try_add_action(GUI::Action::create("&Add Event", { Mod_Ctrl | Mod_Shift, Key_E }, Gfx::Bitmap::try_load_from_file("/res/icons/16x16/add-event.png").release_value_but_fixme_should_propagate_errors(),
         [&](const GUI::Action&) {
             AddEventDialog::show(calendar->selected_date(), window);
-        }));
+        })));
 
-    file_menu.add_separator();
+    TRY(file_menu->try_add_separator());
 
-    file_menu.add_action(GUI::CommonActions::make_quit_action([](auto&) {
+    TRY(file_menu->try_add_action(GUI::CommonActions::make_quit_action([](auto&) {
         GUI::Application::the()->quit();
-    }));
+    })));
 
-    auto& view_menu = window->add_menu("&View");
-    view_menu.add_action(*view_month_action);
-    view_menu.add_action(*view_year_action);
+    auto view_menu = TRY(window->try_add_menu("&View"));
+    TRY(view_menu->try_add_action(*view_month_action));
+    TRY(view_menu->try_add_action(*view_year_action));
 
-    auto& help_menu = window->add_menu("&Help");
-    help_menu.add_action(GUI::CommonActions::make_about_action("Calendar", app_icon, window));
+    auto help_menu = TRY(window->try_add_menu("&Help"));
+    TRY(help_menu->try_add_action(GUI::CommonActions::make_about_action("Calendar", app_icon, window)));
 
     window->show();
-    app->exec();
+    return app->exec();
 }
